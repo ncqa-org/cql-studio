@@ -1,7 +1,8 @@
 // Author: Preston Lee
 
 import { Injectable, inject, signal } from '@angular/core';
-import { firstValueFrom } from 'rxjs';
+import { firstValueFrom, map, filter, first, timeout, TimeoutError } from 'rxjs';
+import { toObservable } from '@angular/core/rxjs-interop';
 import { Library } from 'fhir/r4';
 import { LibraryService } from './library.service';
 import { IdeStateService } from './ide-state.service';
@@ -15,6 +16,7 @@ export class CqlIdeLibraryOpenerService {
   private readonly libraryService = inject(LibraryService);
   private readonly ideStateService = inject(IdeStateService);
   private readonly librarySourceService = inject(CqlLibrarySourceService);
+  private readonly libraryResources$ = toObservable(this.ideStateService.libraryResources);
 
   private readonly _pendingOpen = signal<Library | null>(null);
 
@@ -254,24 +256,17 @@ export class CqlIdeLibraryOpenerService {
   }
 
   private waitForLibraryReady(libraryId: string): Promise<void> {
-    return new Promise(resolve => {
-      const check = (): void => {
-        const resource = this.ideStateService.libraryResources().find(lib => lib.id === libraryId);
-        if (!resource) {
-          resolve();
-          return;
-        }
-        if (resource.contentLoading || resource.contentLoadError) {
-          if (resource.contentLoadError) {
-            resolve();
-            return;
-          }
-          requestAnimationFrame(check);
-          return;
-        }
-        resolve();
-      };
-      check();
+    return firstValueFrom(
+      this.libraryResources$.pipe(
+        map(resources => resources.find(r => r.id === libraryId)),
+        filter(resource => !resource || (!resource.contentLoading)),
+        first(),
+        timeout(30_000)
+      )
+    ).then(() => undefined).catch(err => {
+      if (err instanceof TimeoutError) {
+        console.warn(`waitForLibraryReady: library ${libraryId} did not finish loading within 30s`);
+      }
     });
   }
 }
