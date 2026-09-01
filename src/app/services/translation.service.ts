@@ -188,6 +188,10 @@ export class TranslationService {
       }
     }
 
+    // Yield to the browser before each synchronous translation call so pending paints,
+    // scroll events, and input handling can complete first. translateCqlToElm blocks the
+    // main thread for the full duration of the Java-compiled CQL compiler run.
+    await new Promise<void>(resolve => setTimeout(resolve, 0));
     let result = this.translateCqlToElm(cql);
 
     for (let iteration = 0; iteration < this.MAX_INCLUDE_RESOLVE_ITERATIONS; iteration++) {
@@ -201,6 +205,7 @@ export class TranslationService {
         break;
       }
 
+      await new Promise<void>(resolve => setTimeout(resolve, 0));
       result = this.translateCqlToElm(cql);
     }
 

@@ -188,7 +188,7 @@ export class CqlEditorComponent implements AfterViewInit, OnDestroy, IdeEditor {
   private renameKind: 'expression' | 'function' | undefined;
 
   // Debouncing for validation
-  private validationDebounceFrame?: number;
+  private validationDebounceTimer?: ReturnType<typeof setTimeout>;
   private readonly VALIDATION_DEBOUNCE_MS = 250;
   private validationGeneration = 0;
   private currentValidationErrors: string[] = [];
@@ -292,14 +292,14 @@ export class CqlEditorComponent implements AfterViewInit, OnDestroy, IdeEditor {
       }
     });
 
-    // Re-run canExecute when library resource is updated (e.g. after save)
+    // Re-run canExecute when the active library tab changes or after a save (originalContent update).
+    // untracked: libraryResources is written on every keystroke via updateLibraryResource; tracking
+    // it here would fire this effect — and its updateCanExecute() regex work — on every character typed.
+    // updateCanExecute() is already called per-keystroke from the updateListener docChanged handler.
     effect(() => {
       const libraryId = this.libraryId();
-      const resources = this.ideStateService.libraryResources();
-      const library = resources.find(lib => lib.id === libraryId);
+      const library = untracked(() => this.ideStateService.libraryResources().find(lib => lib.id === libraryId));
       if (library) {
-        void library.originalContent;
-        void library.isDirty;
         this.updateCanExecute();
       }
     });
@@ -470,47 +470,35 @@ export class CqlEditorComponent implements AfterViewInit, OnDestroy, IdeEditor {
               const newValue = update.state.doc.toString();
               this._value = newValue;
               this.invalidateElmDerivedNavigation(newValue);
-              
-              // Update form validity signal
               this._isFormValidSignal.set(newValue.trim().length > 0);
-              
-              // Only emit contentChange if this is not a programmatic update from reload
+
+              // Compute word count once from the already-serialised string — avoids a second
+              // doc.toString() call inside getWordCount() and a third at the bottom of this listener.
+              const wordCount = newValue.trim().split(/\s+/).filter(w => w.length > 0).length;
+
               if (!this.isUpdatingFromReload) {
                 const cursor = this.getCursorPosition();
-                const wordCount = this.getWordCount();
-                this.contentChange.emit({ 
-                  cursorPosition: cursor || { line: 1, column: 1 }, 
-                  wordCount: wordCount || 0,
+                this.contentChange.emit({
+                  cursorPosition: cursor || { line: 1, column: 1 },
+                  wordCount,
                   content: newValue
                 });
-                
-                // Update canExecute state after content change
                 this.updateCanExecute();
               }
-              
-              // Library resource update will be handled by parent component
-              // to avoid change detection issues
+
+              this.editorStateChange.emit({
+                cursorPosition: this.getCursorPosition(),
+                wordCount,
+                syntaxErrors: this.getSyntaxErrors(),
+                isValidSyntax: this.getIsValidSyntax()
+              });
             }
-            
+
             if (update.selectionSet) {
               const selection = update.state.selection.main;
               const line = update.state.doc.lineAt(selection.from).number;
               const column = selection.from - update.state.doc.lineAt(selection.from).from;
               this.cursorChange.emit({ line, column });
-            }
-            
-            // Update word count
-            const text = update.state.doc.toString();
-            const wordCount = text.trim().split(/\s+/).filter(word => word.length > 0).length;
-            
-            // Emit editor state change only for document edits (not cursor-only updates)
-            if (update.docChanged) {
-              this.editorStateChange.emit({
-                cursorPosition: this.getCursorPosition(),
-                wordCount: wordCount,
-                syntaxErrors: this.getSyntaxErrors(),
-                isValidSyntax: this.getIsValidSyntax()
-              });
             }
           }),
           EditorView.domEventHandlers({
@@ -1348,24 +1336,18 @@ export class CqlEditorComponent implements AfterViewInit, OnDestroy, IdeEditor {
   }
 
   private cancelValidationDebounce(): void {
-    if (this.validationDebounceFrame !== undefined) {
-      cancelAnimationFrame(this.validationDebounceFrame);
-      this.validationDebounceFrame = undefined;
+    if (this.validationDebounceTimer !== undefined) {
+      clearTimeout(this.validationDebounceTimer);
+      this.validationDebounceTimer = undefined;
     }
   }
 
   private scheduleValidationDebounce(fallbackCode: string): void {
     this.cancelValidationDebounce();
-    const deadline = performance.now() + this.VALIDATION_DEBOUNCE_MS;
-    const tick = (): void => {
-      if (performance.now() >= deadline) {
-        this.validationDebounceFrame = undefined;
-        this.runDebouncedValidation(fallbackCode);
-      } else {
-        this.validationDebounceFrame = requestAnimationFrame(tick);
-      }
-    };
-    this.validationDebounceFrame = requestAnimationFrame(tick);
+    this.validationDebounceTimer = setTimeout(() => {
+      this.validationDebounceTimer = undefined;
+      this.runDebouncedValidation(fallbackCode);
+    }, this.VALIDATION_DEBOUNCE_MS);
   }
 
   private runDebouncedValidation(fallbackCode: string): void {

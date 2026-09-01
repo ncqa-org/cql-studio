@@ -1172,15 +1172,7 @@ export class CqlIdeComponent implements OnInit, OnDestroy {
   }
 
   private clearExecutionStatusAfter(delayMs: number): void {
-    const deadline = performance.now() + delayMs;
-    const tick = (): void => {
-      if (performance.now() >= deadline) {
-        this.ideStateService.setExecutionStatus('');
-      } else {
-        requestAnimationFrame(tick);
-      }
-    };
-    requestAnimationFrame(tick);
+    setTimeout(() => this.ideStateService.setExecutionStatus(''), delayMs);
   }
 
   private invalidateLibrarySourceCache(
