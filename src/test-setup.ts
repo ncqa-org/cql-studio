@@ -1,5 +1,8 @@
 // Author: Preston Lee
 
+// Angular's compiler is loaded for the test runtime, even when its declarations
+// are not available to the test TypeScript configuration.
+// @ts-ignore -- runtime-only side-effect import
 import '@angular/compiler';
 
 // Setup browser APIs for tests
