@@ -262,22 +262,24 @@ export class CqlEditorComponent implements AfterViewInit, OnDestroy, IdeEditor {
     effect(() => {
       const reloadTrigger = this.ideStateService.reloadTrigger();
       const libraryId = this.libraryId();
-      
+
       if (!reloadTrigger || !libraryId || !this.editor) {
         return;
       }
-      
+
       // Only act if this reload is for the current library
       if (reloadTrigger.libraryId !== libraryId) {
         return;
       }
-      
-      // Get the library resource
-      const library = this.ideStateService.libraryResources().find(lib => lib.id === libraryId);
+
+      // untracked: reloadTrigger is never cleared after being set, so if libraryResources
+      // were read tracked here, every subsequent updateLibraryResource call would re-fire
+      // this effect and call setValue again, creating a signal write cycle that freezes the UI.
+      const library = untracked(() => this.ideStateService.libraryResources().find(lib => lib.id === libraryId));
       if (!library) {
         return;
       }
-      
+
       // Set flag to prevent contentChange event from triggering parent updates
       this.isUpdatingFromReload = true;
       try {
