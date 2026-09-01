@@ -2,7 +2,7 @@
 
 import { Component, input, model } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { EndpointConfiguration } from '../../../models/environment.model';
+import { EndpointConfiguration, EndpointAuthType, SmartClientCredentialsConfig } from '../../../models/environment.model';
 
 @Component({
   selector: 'app-settings-endpoint-editor',
@@ -20,6 +20,23 @@ export class SettingsEndpointEditorComponent {
 
   patchEndpoint(patch: Partial<EndpointConfiguration>): void {
     this.endpoint.set({ ...this.endpoint(), ...patch });
+  }
+
+  onAuthTypeChange(authType: EndpointAuthType): void {
+    const current = this.endpoint();
+    const update: Partial<EndpointConfiguration> = { authType };
+    if (authType === 'smart-client-credentials' && !current.smartAuth) {
+      update.smartAuth = { tokenUrl: '', clientId: '', clientSecret: '', scopes: '' };
+    }
+    this.endpoint.set({ ...current, ...update });
+  }
+
+  patchSmartAuth(patch: Partial<SmartClientCredentialsConfig>): void {
+    const current = this.endpoint();
+    this.endpoint.set({
+      ...current,
+      smartAuth: { ...(current.smartAuth ?? { tokenUrl: '', clientId: '', clientSecret: '' }), ...patch }
+    });
   }
 
   addHeader(): void {

@@ -2,7 +2,7 @@
 
 import { ApplicationConfig, Injectable, inject, provideAppInitializer, provideBrowserGlobalErrorListeners, provideZonelessChangeDetection } from '@angular/core';
 import { provideRouter } from '@angular/router';
-import { provideHttpClient } from '@angular/common/http';
+import { provideHttpClient, withInterceptors } from '@angular/common/http';
 import { provideMarkdown } from 'ngx-markdown';
 import { provideTimeago, TimeagoIntl, TimeagoFormatter, TimeagoCustomFormatter } from 'ngx-timeago';
 import { provideCharts, withDefaultRegisterables } from 'ng2-charts';
@@ -10,6 +10,7 @@ import { provideCharts, withDefaultRegisterables } from 'ng2-charts';
 import { routes } from './app.routes';
 import { AuthService } from './services/auth.service';
 import { EnvironmentSwitchService } from './services/environment-switch.service';
+import { smartFhirAuthInterceptor } from './interceptors/smart-fhir-auth.interceptor';
 
 const timeagoShortStrings = {
   suffixAgo: '',
@@ -41,7 +42,7 @@ export const appConfig: ApplicationConfig = {
     provideZonelessChangeDetection(),
     provideBrowserGlobalErrorListeners(),
     provideRouter(routes),
-    provideHttpClient(),
+    provideHttpClient(withInterceptors([smartFhirAuthInterceptor])),
     provideCharts(withDefaultRegisterables()),
     provideMarkdown(),
     provideTimeago({

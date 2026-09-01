@@ -6,6 +6,7 @@ import { Library } from 'fhir/r4';
 import { LibraryService } from './library.service';
 import { IdeStateService } from './ide-state.service';
 import { ElmIncludeRef } from './elm-include.lib';
+import { CqlLibrarySourceService } from './cql-library-source.service';
 
 @Injectable({
   providedIn: 'root'
@@ -13,6 +14,7 @@ import { ElmIncludeRef } from './elm-include.lib';
 export class CqlIdeLibraryOpenerService {
   private readonly libraryService = inject(LibraryService);
   private readonly ideStateService = inject(IdeStateService);
+  private readonly librarySourceService = inject(CqlLibrarySourceService);
 
   private readonly _pendingOpen = signal<Library | null>(null);
 
@@ -77,6 +79,7 @@ export class CqlIdeLibraryOpenerService {
     let freshLibrary: Library;
     try {
       freshLibrary = await firstValueFrom(this.libraryService.get(library.id));
+      this.librarySourceService.storeLibrary(freshLibrary);
     } catch (error) {
       console.error('Error fetching library from server:', error);
       return this.openLibraryFromCachedData(library);

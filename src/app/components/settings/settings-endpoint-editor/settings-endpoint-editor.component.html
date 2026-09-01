@@ -7,6 +7,81 @@
 @if (description()) {
   <small class="form-text text-muted d-block mb-3">{{ description() }}</small>
 }
+<div class="mb-3">
+  <label class="form-label" [for]="idPrefix() + '-auth-type'">Authentication</label>
+  <select class="form-select" [id]="idPrefix() + '-auth-type'" [name]="idPrefix() + '-auth-type'"
+    [ngModel]="endpoint().authType ?? 'none'" (ngModelChange)="onAuthTypeChange($event)">
+    <option value="none">None</option>
+    <option value="basic">Basic Auth</option>
+    <option value="smart-client-credentials">SMART Client Credentials (OAuth2)</option>
+  </select>
+</div>
+@if ((endpoint().authType ?? 'none') === 'basic') {
+  <div class="row g-2 mb-3">
+    <div class="col">
+      <div class="form-floating">
+        <input type="text" class="form-control" [id]="idPrefix() + '-basic-username'"
+          [name]="idPrefix() + '-basic-username'" autocomplete="off"
+          [ngModel]="endpoint().basicAuthUsername ?? ''"
+          (ngModelChange)="patchEndpoint({ basicAuthUsername: $event })"
+          placeholder="Username">
+        <label [for]="idPrefix() + '-basic-username'">Username</label>
+      </div>
+    </div>
+    <div class="col">
+      <div class="form-floating">
+        <input type="password" class="form-control" [id]="idPrefix() + '-basic-password'"
+          [name]="idPrefix() + '-basic-password'" autocomplete="off"
+          [ngModel]="endpoint().basicAuthPassword ?? ''"
+          (ngModelChange)="patchEndpoint({ basicAuthPassword: $event })"
+          placeholder="Password">
+        <label [for]="idPrefix() + '-basic-password'">Password</label>
+      </div>
+    </div>
+  </div>
+}
+@if (endpoint().authType === 'smart-client-credentials') {
+  <div class="mb-2">
+    <div class="form-floating mb-2">
+      <input type="url" class="form-control" [id]="idPrefix() + '-smart-token-url'"
+        [name]="idPrefix() + '-smart-token-url'"
+        [ngModel]="endpoint().smartAuth?.tokenUrl ?? ''"
+        (ngModelChange)="patchSmartAuth({ tokenUrl: $event })"
+        placeholder="https://auth.example.com/oauth2/token">
+      <label [for]="idPrefix() + '-smart-token-url'">Token URL</label>
+    </div>
+    <div class="row g-2 mb-2">
+      <div class="col">
+        <div class="form-floating">
+          <input type="text" class="form-control" [id]="idPrefix() + '-smart-client-id'"
+            [name]="idPrefix() + '-smart-client-id'" autocomplete="off"
+            [ngModel]="endpoint().smartAuth?.clientId ?? ''"
+            (ngModelChange)="patchSmartAuth({ clientId: $event })"
+            placeholder="Client ID">
+          <label [for]="idPrefix() + '-smart-client-id'">Client ID</label>
+        </div>
+      </div>
+      <div class="col">
+        <div class="form-floating">
+          <input type="password" class="form-control" [id]="idPrefix() + '-smart-client-secret'"
+            [name]="idPrefix() + '-smart-client-secret'" autocomplete="off"
+            [ngModel]="endpoint().smartAuth?.clientSecret ?? ''"
+            (ngModelChange)="patchSmartAuth({ clientSecret: $event })"
+            placeholder="Client Secret">
+          <label [for]="idPrefix() + '-smart-client-secret'">Client Secret</label>
+        </div>
+      </div>
+    </div>
+    <div class="form-floating mb-2">
+      <input type="text" class="form-control" [id]="idPrefix() + '-smart-scopes'"
+        [name]="idPrefix() + '-smart-scopes'"
+        [ngModel]="endpoint().smartAuth?.scopes ?? ''"
+        (ngModelChange)="patchSmartAuth({ scopes: $event })"
+        placeholder="system/*.read">
+      <label [for]="idPrefix() + '-smart-scopes'">Scopes (space-separated, optional)</label>
+    </div>
+  </div>
+}
 @if (showCustomHeaders()) {
   <div class="mb-2">
     <label class="form-label me-2">Custom headers</label>

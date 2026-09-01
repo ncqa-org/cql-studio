@@ -22,6 +22,14 @@ export class CqlLibrarySourceService {
   private readonly elmIncludeParser = inject(ElmIncludeParser);
   private readonly cqlCache = new Map<string, string>();
   private readonly elmCache = new Map<string, string>();
+  /** Stores fetched Library objects by FHIR id to avoid redundant GETs within the same session. */
+  private readonly libraryObjectCache = new Map<string, Library>();
+
+  storeLibrary(library: Library): void {
+    if (library.id) {
+      this.libraryObjectCache.set(library.id, library);
+    }
+  }
 
   getCachedCql(path: string, system: string | null | undefined, version: string | null | undefined): string | null {
     const key = this.elmIncludeParser.cacheKey(path, system, version);
@@ -65,6 +73,7 @@ export class CqlLibrarySourceService {
     if (!path) {
       this.cqlCache.clear();
       this.elmCache.clear();
+      this.libraryObjectCache.clear();
       return;
     }
     const key = this.elmIncludeParser.cacheKey(path, system ?? null, version ?? null);
@@ -91,7 +100,9 @@ export class CqlLibrarySourceService {
   }
 
   async prefetchFromStoredLibrary(fhirLibraryId: string): Promise<boolean> {
-    const library = await firstValueFrom(this.libraryService.get(fhirLibraryId));
+    const library =
+      this.libraryObjectCache.get(fhirLibraryId) ??
+      await firstValueFrom(this.libraryService.get(fhirLibraryId));
     const elmXml = await firstValueFrom(this.libraryService.getElmXml(library));
     if (!elmXml.trim()) {
       return false;

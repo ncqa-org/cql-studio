@@ -30,10 +30,12 @@ export function getEffectiveAddress(
 
 export function compileEndpointHeaders(config: EndpointConfiguration | undefined): string[] {
   const headers: string[] = [];
-  const username = config?.basicAuthUsername?.trim() ?? '';
-  const password = config?.basicAuthPassword ?? '';
-  if (username && password) {
-    headers.push(`Authorization: Basic ${btoa(`${username}:${password}`)}`);
+  if (config?.authType !== 'smart-client-credentials') {
+    const username = config?.basicAuthUsername?.trim() ?? '';
+    const password = config?.basicAuthPassword ?? '';
+    if (username && password) {
+      headers.push(`Authorization: Basic ${btoa(`${username}:${password}`)}`);
+    }
   }
   for (const header of config?.headers ?? []) {
     const trimmed = header?.trim();
@@ -99,8 +101,10 @@ export function buildFhirEndpoint(
 export function cloneEndpointConfiguration(config: EndpointConfiguration): EndpointConfiguration {
   return {
     address: config.address ?? '',
+    authType: config.authType,
     basicAuthUsername: config.basicAuthUsername ?? '',
     basicAuthPassword: config.basicAuthPassword ?? '',
+    smartAuth: config.smartAuth ? { ...config.smartAuth } : undefined,
     headers: [...(config.headers ?? [])]
   };
 }
@@ -112,23 +116,27 @@ function hasAuthorizationHeader(headers: string[]): boolean {
   });
 }
 
-/** Move basicAuth credentials into Authorization custom header; clear basicAuth fields. */
+/** Move basicAuth credentials into Authorization custom header; clear basicAuth fields. Preserves authType and smartAuth. */
 export function normalizeEndpointConfiguration(config: EndpointConfiguration): EndpointConfiguration {
   const cloned = cloneEndpointConfiguration(config);
-  const username = cloned.basicAuthUsername?.trim() ?? '';
-  const password = cloned.basicAuthPassword ?? '';
   const headers = [...(cloned.headers ?? [])];
-  if (username && password && !hasAuthorizationHeader(headers)) {
-    headers.push(`Authorization: Basic ${btoa(`${username}:${password}`)}`);
+  if (cloned.authType !== 'smart-client-credentials') {
+    const username = cloned.basicAuthUsername?.trim() ?? '';
+    const password = cloned.basicAuthPassword ?? '';
+    if (username && password && !hasAuthorizationHeader(headers)) {
+      headers.push(`Authorization: Basic ${btoa(`${username}:${password}`)}`);
+    }
   }
   return {
     address: cloned.address ?? '',
+    authType: cloned.authType,
     basicAuthUsername: '',
     basicAuthPassword: '',
+    smartAuth: cloned.smartAuth,
     headers
   };
 }
 
 export function emptyEndpointConfiguration(): EndpointConfiguration {
-  return { address: '', basicAuthUsername: '', basicAuthPassword: '', headers: [] };
+  return { address: '', authType: undefined, basicAuthUsername: '', basicAuthPassword: '', headers: [] };
 }
